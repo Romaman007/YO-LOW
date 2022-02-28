@@ -61,7 +61,7 @@ class CSPBlock(nn.Module):
         x=self.max_pooling(x)
         return x,feat
 
-class CSRDarckNet_tiny(nn.Module):
+class CSRDarkNet_tiny(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv1=Conv(3,32,kernel_size=3,stride=2)
