@@ -42,6 +42,11 @@ class Dense(nn.Module):
             inp = torch.cat([inp, out], dim=1)
         return self.convout(inp)
 
+def darknet53_tiny(pretrained, **kwargs):
+    model = CSRDarkNet_tiny()
+    if pretrained:
+        model.load_state_dict(torch.load("Data/CSPdarknet53_tiny_backbone_weights.pth"))
+    return model
 
 class CSPBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -131,8 +136,10 @@ class Yolomain(nn.Module):
 if __name__ == "__main__":
     anchors_mask = [[3, 4, 5], [1, 2, 3]]
     num_classes = 80
-    x = torch.randn(2, 3, 416, 416)
-    model = Yolomain(anchors_mask, num_classes)
-    y, y1 = model(x)
-    print(y.size())
-    print(y1.size())
+    y=Yolomain(anchors_mask,num_classes)
+    print(len(y.state_dict().keys()))
+    # x = torch.randn(2, 3, 416, 416)
+    # model = Yolomain(anchors_mask, num_classes)
+    # y, y1 = model(x)
+    # print(y.size())
+    # print(y1.size())

@@ -1,29 +1,32 @@
 import colorsys
 import os
 import time
-
+from langdetc import get_text
 import numpy as np
 import torch
 import torch.nn as nn
-from PIL import Image,ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
-from model import Yolomain
+from yolotest import YoloBody
 from utils import (cvtColor, get_anchors, get_classes, preprocess_input,
-                   resize_image,im_cut)
+                   resize_image)
 from Bboxes import DecodeBox
 
 
 class YOLO(object):
     def __init__(self, **kwargs):
-        self.model_path = "model_data/yolov4_tiny_weights_coco.pth"
+        self.model_path = "Data/ep100-loss0.626-val_loss.pth"
         self.anchors_mask = [[3, 4, 5], [1, 2, 3]]
         self.input_shape = [416, 416]
         self.confidence = 0.5
-        self.nms_iou = 0.3
+        self.nms_iou = 0.2
         self.letterbox_image = False
-        self.cuda = True
-        self.class_names, self.num_classes = get_classes("Data/")
-        self.anchors, self.num_anchors = get_anchors("Data/")
+        self.cuda = False
+        self.fileENG = open("tempENG2.txt", 'w', encoding='utf-8')
+        self.fileFRA = open("tempFRA2.txt", 'w', encoding='utf-8')
+        self.fileRUS = open("tempRUS2.txt", 'w', encoding='utf-8')
+        self.class_names, self.num_classes = get_classes("Data/voc_classes.txt")
+        self.anchors, self.num_anchors = get_anchors("Data/yolo_anchors.txt")
 
         self.bbox_util = DecodeBox(self.anchors, self.num_classes, (self.input_shape[0], self.input_shape[1]),
                                    self.anchors_mask)
@@ -35,7 +38,7 @@ class YOLO(object):
 
     def generate(self):
 
-        self.net = Yolomain(self.anchors_mask, self.num_classes)
+        self.net = YoloBody(self.anchors_mask, self.num_classes)
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.net.load_state_dict(torch.load(self.model_path, map_location=device))
         self.net = self.net.eval()
@@ -45,9 +48,11 @@ class YOLO(object):
             self.net = nn.DataParallel(self.net)
             self.net = self.net.cuda()
 
-    def detect_image(self, image_path):
-        image=Image.open(image_path)
-        crop = Image.open(image_path)
+    def detect_image(self, image_path, Lang):
+        file = open("temp1.txt", 'w', encoding='utf-8')
+        image = Image.open(image_path).convert("RGB")
+        crop = Image.open(image_path).convert("RGB")
+
         image_shape = np.array(np.shape(image)[0:2])
         image = cvtColor(image)
         image_data = resize_image(image, (self.input_shape[1], self.input_shape[0]), self.letterbox_image)
@@ -72,7 +77,7 @@ class YOLO(object):
             top_conf = results[0][:, 4] * results[0][:, 5]
             top_boxes = results[0][:, :4]
 
-        font = ImageFont.truetype(font='model_data/simhei.ttf',
+        font = ImageFont.truetype(font='Data/simhei.ttf',
                                   size=np.floor(3e-2 * image.size[1] + 0.5).astype('int32'))
         thickness = int(max((image.size[0] + image.size[1]) // np.mean(self.input_shape), 1))
 
@@ -80,9 +85,9 @@ class YOLO(object):
             predicted_class = self.class_names[int(c)]
             box = top_boxes[i]
             score = top_conf[i]
-            im_cut(image,box)
             top, left, bottom, right = box
-            im_cut(crop, top, left, bottom, right)
+            get_text(Lang, crop, top, left, bottom, right, file)
+
             top = max(0, np.floor(top).astype('int32'))
             left = max(0, np.floor(left).astype('int32'))
             bottom = min(image.size[1], np.floor(bottom).astype('int32'))
@@ -104,5 +109,23 @@ class YOLO(object):
             draw.rectangle([tuple(text_origin), tuple(text_origin + label_size)], fill=self.colors[c])
             draw.text(text_origin, str(label, 'UTF-8'), fill=(0, 0, 0), font=font)
             del draw
+        file.close()
+        file = open("temp1.txt", 'r',encoding='UTF-8')
+        dicit = ''
+        for line in file:
+            dicit += ' '
+            dicit += line
+        file.close()
+        file = open("temp1.txt", 'w', encoding='UTF-8')
+        dicit = dicit.replace("\r", "")
+        dicit = dicit.replace("\n", "")
+        file.write(dicit + '\n')
+        if Lang=='eng':
+            self.fileENG.write(dicit+image_path+'\n')
+        elif Lang=='fra':
+            self.fileFRA.write(dicit+image_path+'\n')
+        else:
+            self.fileRUS.write(dicit+image_path+'\n')
+        print(dicit)
 
         return image
